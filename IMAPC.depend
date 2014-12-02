@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1417558820 source:/home/virusxp/Developing/IMAPC/src/imapc.cpp
+	"imapc.h"
+
+1417558693 /home/virusxp/Developing/IMAPC/inc/imapc.h
+
