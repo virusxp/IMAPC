@@ -1,27 +1,53 @@
 #include "imapc.h"
 
+#include <string>
+#include <cstdlib>
+#include <cstdio>
+
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
-SSLSocket::SSLSocket(char* hostname, int port) {
-    if(openTCPConnection(hostname,port)) {
-        SSL_load_error_strings();
-        SSL_library_init();
-        this->sslContext = SSL_CTX_new(SSLv23_client_method());
-        if(this->sslContext == NULL) ERR_print_errors_fp(stderr);
-        this->sslHandle = SSL_new(this->sslContext);
-        if(this->sslHandle == NULL) ERR_print_errors_fp(stderr);
-        if (!SSL_set_fd(this->sslHandle,this->socket)) ERR_print_errors_fp(stderr);
-        if (SSL_connect(this->sslHandle) != 1) ERR_print_errors_fp(stderr);
-    } else {}
+#define IMAPC_DEFAULT_RW_BUFFER 2048
+
+SSLConnection::SSLConnection(char* hostname, int port) {
+    strcpy(this->hostname,hostname);
+    this->port = port;
+
+    this->open();
+
+    rdBuffer = (char*)malloc(IMAPC_DEFAULT_RW_BUFFER * sizeof(char));
+    if(rdBuffer == NULL) {/*Exception*/}
+    bytesRead = 0;
+
+    wrBuffer = (char*)malloc(IMAPC_DEFAULT_RW_BUFFER * sizeof(char));
+    if(wrBuffer == NULL) {/*Exception*/}
+    bytesWrite = 0;
 }
 
-SSLSocket::~SSLSocket() {
+SSLConnection(char* hostname, int port, size_t rwBuffer) {
+    strcpy(this->hostname,hostname);
+    this->port = port;
+
+    this->open();
+
+    rdBuffer = (char*)malloc(IMAPC_DEFAULT_RW_BUFFER * sizeof(char));
+    if(rdBuffer == NULL) {/*Exception*/}
+    bytesRead = 0;
+
+    wrBuffer = (char*)malloc(IMAPC_DEFAULT_RW_BUFFER * sizeof(char));
+    if(wrBuffer == NULL) {/*Exception*/}
+    bytesWrite = 0;
+}
+
+SSLConnection::~SSLConnection() {
+    free(rdBuffer);
+    free(wrBuffer);
+
     disconnect();
 }
 
-bool SSLSocket::openTCPConnection(char* hostname, int port) {
+bool SSLConnection::openTCPConnection(char* hostname, int port) {
     struct hostent* hostIP;
     struct sockaddr_in serverInfo;
 
@@ -44,7 +70,20 @@ bool SSLSocket::openTCPConnection(char* hostname, int port) {
     }
 }
 
-void SSLSocket::disconnect() {
+void SSLConnection::open() {
+    if(openTCPConnection(hostname,port)) {
+        SSL_load_error_strings();
+        SSL_library_init();
+        this->sslContext = SSL_CTX_new(SSLv23_client_method());
+        if(this->sslContext == NULL) ERR_print_errors_fp(stderr);
+        this->sslHandle = SSL_new(this->sslContext);
+        if(this->sslHandle == NULL) ERR_print_errors_fp(stderr);
+        if (!SSL_set_fd(this->sslHandle,this->socket)) ERR_print_errors_fp(stderr);
+        if (SSL_connect(this->sslHandle) != 1) ERR_print_errors_fp(stderr);
+    } else {/*Exception*/}
+}
+
+void SSLConnection::disconnect() {
     SSL_shutdown(c->sslHandle);
     SSL_free(c->sslHandle);
 
@@ -52,6 +91,35 @@ void SSLSocket::disconnect() {
 
     SSL_CTX_free(c->sslContext);
 }
+
+int SSLConnection::availableBytes() {
+
+}
+
+char SSLConnection::readByte() {
+
+}
+
+char* SSLConnection::readLine(char* buffer) {
+
+}
+
+char* SSLConnection::readBuffer(char* buffer, int length) {
+
+}
+
+void SSLConnection::writeByte(char chr) {
+
+}
+
+void SSLConnection::writeLine(char* str) {
+
+}
+
+void SSLConnection::writeBuffer(char* str) {
+
+}
+
 
 IMAPClient::IMAPClient() {
 
