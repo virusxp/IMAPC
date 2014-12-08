@@ -167,26 +167,49 @@ char* SSLConnection::readByteN(char* buffer, int length) {
 }
 
 char* SSLConnection::readLine(char* buffer) {
-    return NULL;
-}
+    char buf = '\0';
+    int i = 0;
 
-char* SSLConnection::readBuffer(char* buffer, int length) {
-    return NULL;
+    while(buf != '\n') {
+        errno = 0;
+        buf = this->readByte();
+        if(errno != ENOBYTSAVLBL) buffer[i++] = buf;
+    }
+
+    buffer[i] = '\0';
+    buffer[i - 1] = '\0';
+    buffer[i - 2] = (buffer[i - 2] == '\r') ? '\0' : buffer[i - 2];
+
+    return buffer;
 }
 
 void SSLConnection::writeByte(char chr) {
-
+    wrMtx.lock();
+    if(bytesWrite != maxBufferSize) {
+        bytesWrite++;
+        wrBuffer[wrPtr] = chr;
+        wrPtr = (wrPtr < (maxBufferSize - 1)) ? (wrPtr + 1) : 0;
+        wrMtx.unlock();
+    } else {
+        wrMtx.unlock();
+        errno = EWRBFFROVRFLW;
+    }
 }
 
-void SSLConnection::writeByteN(char* chr, int length) {
+int SSLConnection::writeByteN(char* chr, int length) {
+    wrMtx.lock();
+    int wrC = ((length + bytesWrite) < maxBufferSize) ? length : (maxBufferSize - (length + bytesWrite));
+    bytesWrite += wrC;
+    for(int i = 0; i < wrC; i++) {
+        wrBuffer[wrPtr] = chr;
+        wrPtr = (wrPtr < (maxBufferSize - 1)) ? (wrPtr + 1) : 0;
+    }
+    wrMtx.unlock();
 
+    return wrC;
 }
 
 void SSLConnection::writeLine(char* str) {
-
-}
-
-void SSLConnection::writeBuffer(char* str) {
 
 }
 

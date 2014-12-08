@@ -5,6 +5,7 @@
 #include <mutex>
 
 #define ENOBYTSAVLBL    0xFFFE
+#define EWRBFFROVRFLW   0xFFFD
 
 class SSLConnection {
 private:
@@ -42,12 +43,10 @@ public:
     char readByte();
     char readByteN(char* buffer, int length);
     char* readLine(char* buffer);
-    char* readBuffer(char* buffer, int length);
 
     void writeByte(char chr);
-    void writeByteN(char* chr, int length);
+    int writeByteN(char* chr, int length);
     void writeLine(char* str);
-    void writeBuffer(char* str);
 };
 
 class IMAPClient {
