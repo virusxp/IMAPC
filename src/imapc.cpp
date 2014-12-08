@@ -210,7 +210,10 @@ int SSLConnection::writeByteN(char* chr, int length) {
 }
 
 void SSLConnection::writeLine(char* str) {
-
+    int i = 0;
+    while(str[i] != '\0') this->writeByte(str[i]);
+    this->writeByte('\r');
+    this->writeByte('\n');
 }
 
 
