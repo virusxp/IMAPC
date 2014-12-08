@@ -17,12 +17,12 @@ private:
 
     volatile size_t maxBufferSize;
 
-    volatile char* rdBuffer;
+    char* rdBuffer;
     volatile int bytesRead;
     volatile int readPtr;
     std::mutex rdMtx;
 
-    volatile char* wrBuffer;
+    char* wrBuffer;
     volatile int bytesWrite;
     volatile int wrPtr;
     std::mutex wrMtx;
@@ -41,7 +41,7 @@ public:
     bool bytesAvailable();
 
     char readByte();
-    char readByteN(char* buffer, int length);
+    char* readByteN(char* buffer, int length);
     char* readLine(char* buffer);
 
     void writeByte(char chr);
