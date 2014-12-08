@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <errno.h>
+
 #define IMAPC_DEFAULT_RW_BUFFER 2048
 
 SSLConnection::SSLConnection(char* hostname, int port) {
@@ -19,13 +21,21 @@ SSLConnection::SSLConnection(char* hostname, int port) {
     rdBuffer = (char*)malloc(IMAPC_DEFAULT_RW_BUFFER * sizeof(char));
     if(rdBuffer == NULL) {/*Exception*/}
     bytesRead = 0;
+    rdPtr = 0;
 
     wrBuffer = (char*)malloc(IMAPC_DEFAULT_RW_BUFFER * sizeof(char));
     if(wrBuffer == NULL) {/*Exception*/}
     bytesWrite = 0;
+    wrPtr = 0;
+
+    maxBufferSize = IMAPC_DEFAULT_RW_BUFFER;
+
+    //start threading
+    rdMtx.unlock();
+    wrMtx.unlock();
 }
 
-SSLConnection(char* hostname, int port, size_t rwBuffer) {
+SSLConnection::SSLConnection(char* hostname, int port, size_t rwBuffer) {
     strcpy(this->hostname,hostname);
     this->port = port;
 
@@ -34,10 +44,18 @@ SSLConnection(char* hostname, int port, size_t rwBuffer) {
     rdBuffer = (char*)malloc(IMAPC_DEFAULT_RW_BUFFER * sizeof(char));
     if(rdBuffer == NULL) {/*Exception*/}
     bytesRead = 0;
+    rdPtr = 0;
 
     wrBuffer = (char*)malloc(IMAPC_DEFAULT_RW_BUFFER * sizeof(char));
     if(wrBuffer == NULL) {/*Exception*/}
     bytesWrite = 0;
+    wrPtr = 0;
+
+    maxBufferSize = rwBuffer;
+
+    //start threading
+    rdMtx.unlock();
+    wrMtx.unlock();
 }
 
 SSLConnection::~SSLConnection() {
@@ -52,9 +70,9 @@ bool SSLConnection::openTCPConnection(char* hostname, int port) {
     struct sockaddr_in serverInfo;
 
     hostIP = gethostbyname(hostname);
-    this->socket = socket(AF_INET,SOCK_STREAM,0);
-    if(this->socket < 0) {
-        this->socket = 0;
+    this->sock = socket(AF_INET,SOCK_STREAM,0);
+    if(this->sock < 0) {
+        this->sock = 0;
         return false;
     }
 
@@ -63,11 +81,13 @@ bool SSLConnection::openTCPConnection(char* hostname, int port) {
     serverInfo.sin_addr = *((struct in_addr *) hostIP->h_addr);
     bzero(&(serverInfo.sin_zero),8);
 
-    int error = connect(this->socket,(struct sockaddr*) &serverInfo,sizeof(sockaddr));
-    if(erro < 0) {
-        this->socket = 0;
+    int error = connect(this->sock,(struct sockaddr*) &serverInfo,sizeof(sockaddr));
+    if(erroŕ < 0) {
+        this->sock = 0;
         return false;
     }
+
+    return true;
 }
 
 void SSLConnection::open() {
@@ -84,31 +104,81 @@ void SSLConnection::open() {
 }
 
 void SSLConnection::disconnect() {
-    SSL_shutdown(c->sslHandle);
-    SSL_free(c->sslHandle);
+    SSL_shutdown(sslHandle);
+    SSL_free(sslHandle);
 
-    close (c->socket);
+    close (sock);
 
-    SSL_CTX_free(c->sslContext);
+    SSL_CTX_free(sslContext);
 }
 
 int SSLConnection::availableBytes() {
+    int buffer = 0;
 
+    rdMtx.lock();
+    buffer = bytesRead;
+    rdMtx.unlock();
+
+    return buffer;
+}
+
+bool SSLConnection::bytesAvailable() {
+    int buffer = 0;
+
+    rdMtx.lock();
+    buffer = bytesRead;
+    rdMtx.unlock();
+
+    if(buffer > 0) return true;
+    else return false;
 }
 
 char SSLConnection::readByte() {
+    char buffer = '\0';
 
+    if(this->bytesAvailable()) {
+        errno = 0;
+        rdMtx.lock();
+        buffer = rdBuffer[rdPtr];
+        rdPtr = (rdPtr < (maxBufferSize - 1)) ? (rdPtr + 1) : 0;
+        bytesRead--;
+        rdMtx.unlock();
+        return buffer;
+
+    } else {
+        errno = ENOBYTSAVLBL;
+        return '\0';
+    }
+}
+
+char* SSLConnection::readByteN(char* buffer, int length) {
+    if(!this->bytesAvailable) return NULL;
+
+    rdMtx.lock();
+    int rdC = (length < bytesRead) ? length : bytesRead;
+    bytesRead -= rdC;
+    for(int i = 0; i < length; i++) {
+        buffer[i] = rdBuffer[rdPtr];
+        rdPtr = (rdPtr < (maxBufferSize - 1)) ? (rdPtr + 1) : 0;
+    }
+    rdMtx.unlock();
+
+    return buffer;
 }
 
 char* SSLConnection::readLine(char* buffer) {
-
+    return NULL;
 }
 
 char* SSLConnection::readBuffer(char* buffer, int length) {
-
+    return NULL;
 }
 
 void SSLConnection::writeByte(char chr) {
+
+}
+
+void SSLConnection::writeByteN(char* chr, int length) {
 
 }
 

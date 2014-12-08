@@ -2,20 +2,29 @@
 #define IMAPC_H
 
 #include <openssl/ssl.h>
+#include <mutex>
+
+#define ENOBYTSAVLBL    0xFFFE
 
 class SSLConnection {
 private:
-    int socket;
-    SLL* sslHandle;
+    int sock;
+    SSL* sslHandle;
     SSL_CTX* sslContext;
     char hostname[64];
     int port;
 
-    char* rdBuffer;
-    int bytesRead;
+    volatile size_t maxBufferSize;
 
-    char* wrBuffer;
-    int bytesWrite;
+    volatile char* rdBuffer;
+    volatile int bytesRead;
+    volatile int readPtr;
+    std::mutex rdMtx;
+
+    volatile char* wrBuffer;
+    volatile int bytesWrite;
+    volatile int wrPtr;
+    std::mutex wrMtx;
 
     bool openTCPConnection(char* hostname, int port);
 
@@ -28,15 +37,18 @@ public:
     virtual ~SSLConnection();
 
     int availableBytes();
+    bool bytesAvailable();
 
     char readByte();
+    char readByteN(char* buffer, int length);
     char* readLine(char* buffer);
     char* readBuffer(char* buffer, int length);
 
     void writeByte(char chr);
+    void writeByteN(char* chr, int length);
     void writeLine(char* str);
     void writeBuffer(char* str);
-}
+};
 
 class IMAPClient {
 private:
